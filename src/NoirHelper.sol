@@ -1,4 +1,5 @@
-pragma solidity 0.8.25;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.25;
 
 import { TestBase, Vm } from "forge-std/Base.sol";
 import { console2 as console } from "forge-std/console2.sol";
@@ -34,15 +35,14 @@ contract NoirHelper is TestBase {
 
     CircuitInput public inputs;
 
-    /// Adds an input.
-    /// Can be chained.
+    /// @notice Adds a key and its corresponding value(key-vaue pairs) as input. Can be chained.
     ///
     /// # Example
     ///
     /// ```
     /// withInput("x", 1).withInput("y", 2).withStruct("s").withStructInput("b", 4);
     ///
-    /// Output toml file would look like so:
+    /// Output toml file would look like this:
     ///
     /// x = 1
     /// y = 2
@@ -334,13 +334,13 @@ contract NoirHelper is TestBase {
         delete inputs;
     }
 
-    /// Read a proof + public inputs from a file located in {filePath}/target/proofs.
-    /// Can read proof for either Ultraplonk or Ultrahonk
+    /// @notice Reads a proof + public inputs from a file located in {filePath}/target/proofs.
+    ///         Can read proof for either Ultraplonk or Ultrahonk proof system.
     ///
     /// # Example
     ///
     /// ```
-    /// (bytes32[] memory pubInputs, bytes memory proof) = readProofFile(filePath, "my_proof");
+    /// (bytes32[] memory pubInputs, bytes memory proof) = readProofFile({filePath}, "my_proof");
     /// ```
 
     function readProofFile(string memory filePath, uint256 pubInputSize) 
@@ -350,6 +350,14 @@ contract NoirHelper is TestBase {
     {
         bytes memory proofData = vm.readFileBinary(filePath);
         return readProof(proofData, pubInputSize);
+    }
+
+    function readProof(uint256 pubInputSize) 
+        public
+        view
+        returns (bytes32[] memory, bytes memory) 
+    {
+        return readProofFile(circuitProjectPath, pubInputSize);
     }
 
     function readProof(bytes memory proofData, uint256 pubInputSize)
@@ -388,6 +396,14 @@ contract NoirHelper is TestBase {
         return readProofHonk(proofData, pubInputSize);
     }
 
+    function readProofHonk(uint256 pubInputSize) 
+        public  
+        view
+        returns (bytes32[] memory, bytes memory) 
+    {
+        return readProofFileHonk(circuitProjectPath, pubInputSize);
+    }
+
     /// Modified from https://github.com/AztecProtocol/aztec-packages/blob/master/barretenberg/sol/test/base/TestBase.sol#L56
     function readProofHonk(bytes memory proofData, uint256 pubInputSize)
         public
@@ -420,13 +436,17 @@ contract NoirHelper is TestBase {
         return(publicInputs, proof);
     }
 
-    /// Generates a proof based on inputs and returns it.
+    /// @notice Generates a proof based on inputs and returns it.
     ///
     /// # Arguments
-    /// * `proverName`   - The name of the prover file to be created in circuits/.
-    ///                    Also servers as the name of the proof to be generated in {filePath}/target/proofs.
+    /// * `proverName`   - The name of the prover toml file to be used.
+    ///                    Also serves as the name of the proof and the witness file to be generated`.
+    ///                    In order to preserve the same effect when `nargo execute` is run directly from 
+    ///                    the circuits directory, if the `proverName` is `Prover` then the name of the proof 
+    ///                    file is just `proof`, the name of the compiled circuits file i.e `../target/*.json` 
+    ///                    is `{circuit's package name}` which will also serve as the name of the witness file.
     /// * `pubInputSize` - Number of the circuit public inputs.
-    /// * `flavour`      - Barretenberg backend to use. i.e ultraplonk or honk.
+    /// * `flavour`      - Barretenberg backend to use. i.e Ultraplonk or Ultrahonk.
     /// * `cleanup`      - To clean up generated files or not?
     ///
     /// # Example
@@ -434,6 +454,7 @@ contract NoirHelper is TestBase {
     /// ```
     /// withInput("x", 1).withInput("y", 2).withInput("z", [1,2]);
     /// (byte32[] memory pubInputs, bytes memory proof) = generateProof(3);
+    /// (pubInputs, proof) = generateProofAndClean(3);
     /// ```
     function _generateProof(
         string memory proverName,
@@ -464,27 +485,17 @@ contract NoirHelper is TestBase {
             vm.serializeJson(string.concat(INPUT_KEY, vm.toString(i)), "{}");
         }
 
-        string memory witnessName = proverName;
-        string memory proofName = string.concat(proverName, ".proof");
-        if(proverName.eqs("Prover")){
-            proofName = "proof";
-            witnessName = string(vm.parseTomlString(vm.readFile(string.concat(circuitProjectPath, "/Nargo.toml")), ".package.name"));
-        }
-
         clean();
 
-        // generate proof
-        string[] memory ffi_cmds = new string[](7);
-        ffi_cmds[0] = "./prove.sh";
-        ffi_cmds[1] = circuitProjectPath;
-        ffi_cmds[2] = proverName;
-        // prevent stack overflow
-        ffi_cmds[3] = string(vm.parseTomlString(vm.readFile(string.concat(circuitProjectPath, "/Nargo.toml")), ".package.name"));
-        ffi_cmds[4] = witnessName;
-        ffi_cmds[5] = proofName;
-        ffi_cmds[6] = vm.toString(uint8(flavour));
+        string memory witnessName = proverName;
+        string memory proofName = string.concat(proverName, ".proof");
+        string memory circuitName = string(vm.parseTomlString(vm.readFile(string.concat(circuitProjectPath, "/Nargo.toml")), ".package.name"));
+        if(proverName.eqs("Prover")){
+            proofName = "proof";
+            witnessName = circuitName;
+        }
 
-        Vm.FfiResult memory res = vm.tryFfi(ffi_cmds);
+        Vm.FfiResult memory res = _executeAndProveCmd(proverName, witnessName, circuitName, proofName, flavour);
         
         if(res.exitCode == 1){
             if(string(res.stderr).contains("error: Failed constraint")){
@@ -496,11 +507,12 @@ contract NoirHelper is TestBase {
             }
         }
 
-        // read proof
         string memory proofLocation = string.concat(circuitProjectPath, "/target/", proofName);
+        
         // prevent stack overflow
         StructOutputs memory out;
 
+        // read proof
         if(flavour == PlonkFlavour.BBDefault){
             (out.pubInputs, out.proof) = readProofFile(proofLocation, pubInputSize);
         } else {
@@ -520,6 +532,39 @@ contract NoirHelper is TestBase {
         }
 
         return (out.pubInputs, out.proof);
+    }
+
+    function _executeAndProveCmd(
+        string memory proverName,
+        string memory witnessName,
+        string memory circuitName,
+        string memory proofName,
+        PlonkFlavour flavour
+    ) internal returns(Vm.FfiResult memory){
+        string memory circuitFile = string.concat("./target/", circuitName, ".json");
+        string memory witnessFile = string.concat("./target/", witnessName, ".gz");
+        string memory proofFile = string.concat("./target/", proofName);
+
+        string memory dirCmd = string.concat("cd ", circuitProjectPath);
+        string memory executeCmd = string.concat("nargo execute -p ", proverName, " ", witnessName);
+        string memory proveCmd = string.concat(
+            "bb ", 
+            flavour == PlonkFlavour.BBDefault ? "prove" : "prove_ultra_honk",
+            " -b ",
+            circuitFile,
+            " -w ",
+            witnessFile,
+            " -o ",
+            proofFile
+        );
+
+        // generate proof
+        string[] memory ffi_cmds = new string[](3);
+        ffi_cmds[0] = "bash";
+        ffi_cmds[1] = "-c";
+        ffi_cmds[2] = string.concat(dirCmd, " && ", executeCmd, " && ", proveCmd);
+
+        return vm.tryFfi(ffi_cmds);
     }
 
     function generateProofAndClean(string memory proverName, uint256 pubInputSize) 

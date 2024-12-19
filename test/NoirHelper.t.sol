@@ -1,11 +1,11 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
 import {Test, console} from "forge-std/Test.sol";
 import {NoirHelper} from "../src/NoirHelper.sol";
 
 contract NoirHelperTest is Test {
-    NoirHelper public noirHelper;
+    NoirHelper noirHelper;
 
     function setUp() public {
         noirHelper = new NoirHelper();
