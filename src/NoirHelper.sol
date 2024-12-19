@@ -35,7 +35,7 @@ contract NoirHelper is TestBase {
 
     CircuitInput public inputs;
 
-    /// @notice Adds a key and its corresponding value(key-vaue pairs) as input. Can be chained.
+    /// @notice Adds a key and its corresponding value(key-value pair) as input. Can be chained.
     ///
     /// # Example
     ///
@@ -334,13 +334,13 @@ contract NoirHelper is TestBase {
         delete inputs;
     }
 
-    /// @notice Reads a proof + public inputs from a file located in {filePath}/target/proofs.
+    /// @notice Reads a proof + public inputs from a file located in `{filePath}/target/proof`.
     ///         Can read proof for either Ultraplonk or Ultrahonk proof system.
     ///
     /// # Example
     ///
     /// ```
-    /// (bytes32[] memory pubInputs, bytes memory proof) = readProofFile({filePath}, "my_proof");
+    /// (bytes32[] memory pubInputs, bytes memory proof) = readProofFile(filePath, "my_proof");
     /// ```
 
     function readProofFile(string memory filePath, uint256 pubInputSize) 
@@ -440,10 +440,10 @@ contract NoirHelper is TestBase {
     ///
     /// # Arguments
     /// * `proverName`   - The name of the prover toml file to be used.
-    ///                    Also serves as the name of the proof and the witness file to be generated`.
-    ///                    In order to preserve the same effect when `nargo execute` is run directly from 
+    ///                    Also serves as the name of the proof and the witness file to be generated.
+    ///                    In order to preserve the same effect as when `nargo execute` is run directly from 
     ///                    the circuits directory, if the `proverName` is `Prover` then the name of the proof 
-    ///                    file is just `proof`, the name of the compiled circuits file i.e `../target/*.json` 
+    ///                    file is just `proof`, the name of the compiled circuits file i.e `{circuit_dir}/target/*.json` 
     ///                    is `{circuit's package name}` which will also serve as the name of the witness file.
     /// * `pubInputSize` - Number of the circuit public inputs.
     /// * `flavour`      - Barretenberg backend to use. i.e Ultraplonk or Ultrahonk.
@@ -508,7 +508,7 @@ contract NoirHelper is TestBase {
         }
 
         string memory proofLocation = string.concat(circuitProjectPath, "/target/", proofName);
-        
+
         // prevent stack overflow
         StructOutputs memory out;
 
