@@ -507,6 +507,7 @@ contract NoirHelper is TestBase {
                 bytes32[] memory emptyPubInputs = new bytes32[](0);
                 return(emptyPubInputs, "");
             } else {
+                if(vm.exists(proverTOML)) vm.removeFile(proverTOML);
                 revert RevertWithError(string(res.stderr));
             }
         }
