@@ -19,11 +19,6 @@ contract NoirHelper is TestBase {
         string structValues;
     }
 
-    struct StructOutputs {
-        bytes32[] pubInputs;
-        bytes proof;
-    }
-
     struct CircuitInput {
         string values;
         StructInputs[] structInputs;
@@ -323,6 +318,19 @@ contract NoirHelper is TestBase {
         return this;
     }
 
+    function useName(string memory circuitName) 
+        internal
+        view
+        returns (string memory, string memory, string memory)
+    {
+        string memory rand = vm.toString(vm.randomUint(32));
+        return (
+            string.concat("Prover", rand),
+            string.concat("proof", rand),
+            string.concat(circuitName, rand)
+        );
+    }
+
     /// "Empty" the inputs array.
     ///
     /// # Example
@@ -465,12 +473,16 @@ contract NoirHelper is TestBase {
         internal
         returns (bytes32[] memory, bytes memory) 
     {
-        string memory prevProverTOML;
+
+        string memory witnessName = proverName;
+        string memory proofName = string.concat(proverName, ".proof");
+        string memory circuitName = string(vm.parseTomlString(vm.readFile(string.concat(circuitProjectPath, "/Nargo.toml")), ".package.name"));
+        if(proverName.eqs("Prover")){
+            (proverName, proofName, witnessName) = useName(circuitName);
+        }
+
         // write prover file
         string memory proverTOML = string.concat(circuitProjectPath, "/", proverName, ".toml");
-        if(vm.exists(proverTOML)){
-            prevProverTOML = vm.readFile(proverTOML);
-        }
 
         vm.writeFile(proverTOML, "");
         // write all inputs with their values
@@ -487,14 +499,6 @@ contract NoirHelper is TestBase {
 
         clean();
 
-        string memory witnessName = proverName;
-        string memory proofName = string.concat(proverName, ".proof");
-        string memory circuitName = string(vm.parseTomlString(vm.readFile(string.concat(circuitProjectPath, "/Nargo.toml")), ".package.name"));
-        if(proverName.eqs("Prover")){
-            proofName = "proof";
-            witnessName = circuitName;
-        }
-
         Vm.FfiResult memory res = _executeAndProveCmd(proverName, witnessName, circuitName, proofName, flavour);
         
         if(res.exitCode == 1){
@@ -509,29 +513,24 @@ contract NoirHelper is TestBase {
 
         string memory proofLocation = string.concat(circuitProjectPath, "/target/", proofName);
 
-        // prevent stack overflow
-        StructOutputs memory out;
+        bytes32[] memory pubInputs;
+        bytes memory proof;
 
         // read proof
         if(flavour == PlonkFlavour.BBDefault){
-            (out.pubInputs, out.proof) = readProofFile(proofLocation, pubInputSize);
+            (pubInputs, proof) = readProofFile(proofLocation, pubInputSize);
         } else {
-            (out.pubInputs, out.proof) = readProofFileHonk(proofLocation, pubInputSize);
+            (pubInputs, proof) = readProofFileHonk(proofLocation, pubInputSize);
         }
 
         if (cleanup) {
             // remove files
-            if(proverName.eqs("Prover")){
-                if(!prevProverTOML.eqs("")){
-                    vm.writeFile(proverTOML, prevProverTOML);
-                }
-            } else {
-                vm.removeFile(proverTOML);
-            }
+            vm.removeFile(proverTOML);
             vm.removeFile(proofLocation);
+            vm.removeFile(string.concat(circuitProjectPath, "/target/", witnessName, ".gz"));
         }
 
-        return (out.pubInputs, out.proof);
+        return (pubInputs, proof);
     }
 
     function _executeAndProveCmd(
@@ -595,32 +594,18 @@ contract NoirHelper is TestBase {
         return _generateProof(proverName, pubInputSize, PlonkFlavour.UltraHonk, false);
     }
 
-    function generateProofAndClean(uint256 pubInputSize) 
-        public 
-        returns (bytes32[] memory, bytes memory) 
-    {
-        return _generateProof("Prover", pubInputSize, PlonkFlavour.BBDefault, true);
-    }
-
-    function generateProofHonkAndClean(uint256 pubInputSize) 
-        public 
-        returns (bytes32[] memory, bytes memory) 
-    {
-        return _generateProof("Prover", pubInputSize, PlonkFlavour.UltraHonk, true);
-    }
-
     function generateProof(uint256 pubInputSize) 
         public 
         returns (bytes32[] memory, bytes memory)
     {
-        return _generateProof("Prover", pubInputSize, PlonkFlavour.BBDefault, false);
+        return _generateProof("Prover", pubInputSize, PlonkFlavour.BBDefault, true);
     }
 
     function generateProofHonk(uint256 pubInputSize) 
         public 
         returns (bytes32[] memory, bytes memory) 
     {
-        return _generateProof("Prover", pubInputSize, PlonkFlavour.UltraHonk, false);
+        return _generateProof("Prover", pubInputSize, PlonkFlavour.UltraHonk, true);
     }
 
 }
