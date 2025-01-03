@@ -474,8 +474,13 @@ contract NoirHelper is TestBase {
         string memory witnessName = proverName;
         string memory proofName = string.concat(proverName, ".proof");
         string memory circuitName = string(vm.parseTomlString(vm.readFile(string.concat(circuitProjectPath, "/Nargo.toml")), ".package.name"));
+
         if(proverName.eqs("Prover")){
-            (proverName, proofName, witnessName) = useName(circuitName);
+            (
+                proverName, 
+                proofName, 
+                witnessName
+            ) = useName(circuitName);
         }
 
         // write prover file
@@ -496,20 +501,25 @@ contract NoirHelper is TestBase {
 
         clean();
 
-        Vm.FfiResult memory res = _executeAndProveCmd(proverName, witnessName, circuitName, proofName, flavour);
+        (Vm.FfiResult memory res, string memory newCircuitProjectPath) = _executeAndProveCmd(proverName, witnessName, circuitName, proofName, flavour);
         
         if(res.exitCode == 1){
+            vm.removeDir(newCircuitProjectPath, true);
+            if(vm.exists(proverTOML)) vm.removeFile(proverTOML);
             if(string(res.stderr).contains("error: Failed constraint")){
                 emit FailedConstraintWithError();
                 bytes32[] memory emptyPubInputs = new bytes32[](0);
                 return(emptyPubInputs, "");
             } else {
-                if(vm.exists(proverTOML)) vm.removeFile(proverTOML);
                 revert RevertWithError(string(res.stderr));
             }
         }
 
         string memory proofLocation = string.concat(circuitProjectPath, "/target/", proofName);
+
+        vm.copyFile(string.concat(newCircuitProjectPath, "/target/", proofName), proofLocation);
+        
+        vm.removeDir(newCircuitProjectPath, true);
 
         bytes32[] memory pubInputs;
         bytes memory proof;
@@ -525,7 +535,6 @@ contract NoirHelper is TestBase {
             // remove files
             vm.removeFile(proverTOML);
             vm.removeFile(proofLocation);
-            vm.removeFile(string.concat(circuitProjectPath, "/target/", witnessName, ".gz"));
         }
 
         return (pubInputs, proof);
@@ -537,31 +546,37 @@ contract NoirHelper is TestBase {
         string memory circuitName,
         string memory proofName,
         PlonkFlavour flavour
-    ) internal returns(Vm.FfiResult memory){
-        string memory circuitFile = string.concat("./target/", circuitName, ".json");
-        string memory witnessFile = string.concat("./target/", witnessName, ".gz");
-        string memory proofFile = string.concat("./target/", proofName);
+    ) internal returns(Vm.FfiResult memory, string memory){
+        string memory newCircuitProjectPath = string.concat(circuitProjectPath, "/../", "__tmp__", proverName);
+        string memory newCircuitCmd = string.concat("nargo new ", newCircuitProjectPath);
+        string memory copyCircuitCmd = string.concat("cp -r -f ", circuitProjectPath, "/ ", newCircuitProjectPath, "/");
 
-        string memory dirCmd = string.concat("cd ", circuitProjectPath);
+        string memory dirCmd = string.concat("cd ", newCircuitProjectPath);
         string memory executeCmd = string.concat("nargo execute -p ", proverName, " ", witnessName);
         string memory proveCmd = string.concat(
             "bb ", 
             flavour == PlonkFlavour.BBDefault ? "prove" : "prove_ultra_honk",
             " -b ",
-            circuitFile,
+            string.concat("./target/", circuitName, ".json"),
             " -w ",
-            witnessFile,
+            string.concat("./target/", witnessName, ".gz"),
             " -o ",
-            proofFile
+            string.concat("./target/", proofName)
         );
 
         // generate proof
         string[] memory ffi_cmds = new string[](3);
         ffi_cmds[0] = "bash";
         ffi_cmds[1] = "-c";
-        ffi_cmds[2] = string.concat(dirCmd, " && ", executeCmd, " && ", proveCmd);
+        ffi_cmds[2] = string.concat(
+            newCircuitCmd, " && ",
+            copyCircuitCmd, " && ",
+            dirCmd, " && ",
+            executeCmd, " && ",
+            proveCmd
+        );
 
-        return vm.tryFfi(ffi_cmds);
+        return (vm.tryFfi(ffi_cmds), newCircuitProjectPath);
     }
 
     function generateProofAndClean(string memory proverName, uint256 pubInputSize) 
