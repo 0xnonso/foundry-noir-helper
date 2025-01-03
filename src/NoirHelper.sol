@@ -344,6 +344,8 @@ contract NoirHelper is TestBase {
 
     /// @notice Reads a proof + public inputs from a file located in `{filePath}/target/proof`.
     ///         Can read proof for either Ultraplonk or Ultrahonk proof system.
+    /// @dev `pubInputSize` is the expected number of public inputs of the circuit. i.e if the 
+    ///      circuit has a public public return value, it is calculated and added to the public inputs.
     ///
     /// # Example
     ///
@@ -448,11 +450,6 @@ contract NoirHelper is TestBase {
     ///
     /// # Arguments
     /// * `proverName`   - The name of the prover toml file to be used.
-    ///                    Also serves as the name of the proof and the witness file to be generated.
-    ///                    In order to preserve the same effect as when `nargo execute` is run directly from 
-    ///                    the circuits directory, if the `proverName` is `Prover` then the name of the proof 
-    ///                    file is just `proof`, the name of the compiled circuits file i.e `{circuit_dir}/target/*.json` 
-    ///                    is `{circuit's package name}` which will also serve as the name of the witness file.
     /// * `pubInputSize` - Number of the circuit public inputs.
     /// * `flavour`      - Barretenberg backend to use. i.e Ultraplonk or Ultrahonk.
     /// * `cleanup`      - To clean up generated files or not?
