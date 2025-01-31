@@ -517,7 +517,7 @@ contract NoirHelper is TestBase {
 
         string memory proofLocation = string.concat(circuitProjectPath, "/target/", proofName);
 
-        vm.copyFile(string.concat(newCircuitProjectPath, "/target/", proofName), proofLocation);
+        vm.copyFile(string.concat(newCircuitProjectPath, "/circuits/target/", proofName), proofLocation);
         
         vm.removeDir(newCircuitProjectPath, true);
 
@@ -551,7 +551,7 @@ contract NoirHelper is TestBase {
         string memory newCircuitCmd = string.concat("nargo new ", newCircuitProjectPath);
         string memory copyCircuitCmd = string.concat("cp -r -f ", circuitProjectPath, "/ ", newCircuitProjectPath, "/");
 
-        string memory dirCmd = string.concat("cd ", newCircuitProjectPath);
+        string memory dirCmd = string.concat("cd ", newCircuitProjectPath, "/circuits");
         string memory executeCmd = string.concat("nargo execute -p ", proverName, " ", witnessName);
         string memory proveCmd = string.concat(
             "bb ", 
