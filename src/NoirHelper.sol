@@ -548,8 +548,7 @@ contract NoirHelper is TestBase {
         PlonkFlavour flavour
     ) internal returns(Vm.FfiResult memory, string memory){
         string memory newCircuitProjectPath = string.concat(circuitProjectPath, "/../", "__tmp__", proverName);
-        string memory newCircuitCmd = string.concat("nargo new ", newCircuitProjectPath);
-        string memory copyCircuitCmd = string.concat("cp -r -f ", circuitProjectPath, "/ ", newCircuitProjectPath, "/");
+        string memory copyCircuitCmd = string.concat("cp -r ", circuitProjectPath, "/ ", newCircuitProjectPath, "/");
 
         string memory dirCmd = string.concat("cd ", newCircuitProjectPath);
         string memory executeCmd = string.concat("nargo execute -p ", proverName, " ", witnessName);
@@ -569,7 +568,6 @@ contract NoirHelper is TestBase {
         ffi_cmds[0] = "bash";
         ffi_cmds[1] = "-c";
         ffi_cmds[2] = string.concat(
-            newCircuitCmd, " && ",
             copyCircuitCmd, " && ",
             dirCmd, " && ",
             executeCmd, " && ",
