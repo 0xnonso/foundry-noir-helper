@@ -27,6 +27,7 @@ contract NoirHelper is TestBase {
     string constant INPUT_KEY = "input key";
 
     string public circuitProjectPath = "./circuits";
+    string public proofOutlocation = "";
 
     CircuitInput public inputs;
 
@@ -318,6 +319,11 @@ contract NoirHelper is TestBase {
         return this;
     }
 
+    function withProofOutputPath(string memory path) public returns (NoirHelper){
+        proofOutlocation = path;
+        return this;
+    }
+
     function useName(string memory circuitName) 
         internal
         view
@@ -515,9 +521,20 @@ contract NoirHelper is TestBase {
             }
         }
 
-        string memory proofLocation = string.concat(circuitProjectPath, "/target/", proofName);
+        string memory proofLocation = string.concat(circuitProjectPath, "/target");
 
-        vm.copyFile(string.concat(newCircuitProjectPath, "/target/", proofName), proofLocation);
+        {
+            if(!proofOutlocation.eqs("")){
+                proofLocation = proofOutlocation;
+            }
+            if(!vm.exists(proofLocation)){
+                vm.createDir(proofLocation, false);
+            }
+        }
+
+        proofLocation = string.concat(proofLocation, "/", proofName);
+
+        vm.writeFileBinary(proofLocation, vm.readFileBinary(string.concat(newCircuitProjectPath, "/target/", proofName)));
         
         vm.removeDir(newCircuitProjectPath, true);
 
