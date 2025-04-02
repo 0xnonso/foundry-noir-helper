@@ -6,4 +6,7 @@ evm_version = "cancun"
 ffi = true
 fs_permissions = [{ access = "read-write", path = "./"}]
 
+[profile.default.fmt]
+line_length = 100
+
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

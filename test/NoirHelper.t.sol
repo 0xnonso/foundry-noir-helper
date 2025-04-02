@@ -19,9 +19,10 @@ contract NoirHelperTest is Test {
         test[0][1] = bytes32(uint256(4));
         test[1][0] = bytes32(uint256(1));
         test[1][1] = bytes32(uint256(5));
-        noirHelper.withInput("x", 8).withInput("b", test).withInput("y", 9).withStruct("test").withStructInput("a", test);
+        noirHelper.withInput("x", 8).withInput("b", test).withInput("y", 9).withStruct("test")
+            .withStructInput("a", test);
         (bytes32[] memory publicInputs,) = noirHelper.generateProof(1);
-        assertEq(publicInputs[0], bytes32(uint(9)));
+        assertEq(publicInputs[0], bytes32(uint256(9)));
     }
 
     function test_NoirHelper1() public {
@@ -32,9 +33,14 @@ contract NoirHelperTest is Test {
         test[0][1] = bytes32(uint256(4));
         test[1][0] = bytes32(uint256(1));
         test[1][1] = bytes32(uint256(5));
-        noirHelper.withInput("x", bytes32(uint256(67))).withInput("b", test).withInput("y", bytes32(uint256(79))).withStruct("test").withStructInput("a", test);
+        noirHelper
+            .withInput("x", bytes32(uint256(67)))
+            .withInput("b", test)
+            .withInput("y", bytes32(uint256(79)))
+            .withStruct("test")
+            .withStructInput("a", test);
         (bytes32[] memory publicInputs,) = noirHelper.generateProof(1);
-        assertEq(publicInputs[0], bytes32(uint(79)));
+        assertEq(publicInputs[0], bytes32(uint256(79)));
     }
 
     function test_NoirHelper2(uint128 x, uint128 y) public {
@@ -48,8 +54,11 @@ contract NoirHelperTest is Test {
         test[0][1] = bytes32(uint256(4));
         test[1][0] = bytes32(uint256(1));
         test[1][1] = bytes32(uint256(5));
-        noirHelper.withInput("x", bytes32(uint256(x))).withInput("b", test).withInput("y", bytes32(uint256(y))).withStruct("test").withStructInput("a", test);
+        noirHelper
+            .withInput("x", bytes32(uint256(x)))
+            .withInput("b", test).withInput("y", bytes32(uint256(y)))
+            .withStruct("test")
+            .withStructInput("a", test);
         (bytes32[] memory publicInputs,) = noirHelper.generateProof(1);
     }
-
 }
